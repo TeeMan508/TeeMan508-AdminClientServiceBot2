@@ -1,0 +1,18 @@
+version: 1
+disable_existing_loggers: no
+formatters:
+    console_formatter_backend:
+        (): bot.logger.ConsoleFormatter
+handlers:
+    console_handler_backend:
+        class: logging.StreamHandler
+        level: INFO
+        formatter: console_formatter_backend
+loggers:
+    root:
+        level: INFO
+        handlers: [console_handler_backend]
+    bot:
+        level: INFO
+        handlers: [console_handler_backend]
+        propagate: no
