@@ -21,7 +21,7 @@ if not settings.BOT_TOKEN:
     sys.exit(1)
 
 RUNNING_MODE = RunningMode.LONG_POLLING
-
+print(settings.BOT_TOKEN)
 bot = Bot(token=settings.BOT_TOKEN)
 
 dispatcher = Dispatcher()

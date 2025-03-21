@@ -2,81 +2,53 @@ import uuid
 
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
-from aiogram.types import Message
-from aiohttp import ClientSession
+from aiogram.types import Message, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiohttp import ClientSession, ClientResponseError
 
 from .router import router
 from ..callback.admin import AdminState
-from ...bot import bot, dispatcher
-from ...logger import logger
+from ...bot import bot
+from ...logger import logger, correlation_id_ctx
+from ...messages import ERROR_MESSAGE, NEXT_CLIENT_TEXT, NEXT_CLIENT_BUTTON_TEXT
 
-CLEAR_CLIENT_URL = "http://web:8000/api/user/clear_client"
-FREE_ADMIN_URL = "http://web:8000/api/user/free_admin"
-GET_CURRENT_CLIENT = "http://web:8000/api/user/get_current_client"
+from ...urls import FREE_ADMIN_URL, GET_CURRENT_CLIENT_URL
 
 
-@router.message(AdminState.busy)
+@router.message(AdminState.active)
 async def send_answer_to_client(message: Message, state: FSMContext) -> None:
-
     if message.from_user is None:
         return
+    uid = str(uuid.uuid4())
+    correlation_id_ctx.set(uid)
+    headers = {
+        "X-CORRELATION-ID": uid
+    }
 
     async with ClientSession() as session:
-        async with session.post(url=GET_CURRENT_CLIENT, data={"tg_id": message.chat.id}) as response:
-            if response.status == 204:
-                logger.info(f"Get current client request. Status: {response.status}. Wrong telegram id.")
-                return
-
-            if response.status == 200:
-                logger.info(f"FGet current client request. Status: {response.status}")
-
+        async with session.get(url=GET_CURRENT_CLIENT_URL, data={"tg_id": message.chat.id}, headers=headers) as response:
+            try:
+                response.raise_for_status()
                 data = await response.json()
                 client_id = data["tg_id"]
+            except ClientResponseError as e:
+                text = f"{ERROR_MESSAGE}: {e}"
+                await message.answer(text)
+                return
 
-    await bot.send_message(client_id, message.text) # ???
+    await bot.send_message(int(client_id), message.text)
 
     async with ClientSession() as session:
-        async with session.post(url=CLEAR_CLIENT_URL, data={"tg_id": client_id}) as response:
-            if response.status == 200:
-                logger.info(f"Clear client request. Status: {response.status}")
+        async with session.post(url=FREE_ADMIN_URL, data={"tg_id": message.chat.id}, headers=headers) as response:
+            try:
+                response.raise_for_status()
+            except ClientResponseError as e:
+                text = f"{ERROR_MESSAGE}: {e}"
+                await message.answer(text)
+                return
 
-            if response.status == 204:
-                logger.info(f"Clear client request. Status: {response.status}. Wrong telegram id.")
-
-        await state.set_state(AdminState.free)
-
-        client_state = FSMContext(storage=dispatcher.storage,
-                                  key=StorageKey(
-                                      chat_id=int(client_id),
-                                      user_id=int(client_id),
-                                      bot_id=bot.id
-                                  ))
-        await client_state.clear()
-
-        uid = str(uuid.uuid4())
-        from bot.logger import correlation_id_ctx
-        correlation_id_ctx.set(uid)
-
-        async with session.post(url=FREE_ADMIN_URL, data={"tg_id": message.chat.id}, headers={}) as response:
-            if response.status == 200:
-                logger.info(f"Free admin request. Status: {response.status}")
-                data = await response.json()
-
-                bot.send_message(data["tg_id"], data["complaint"])
-                admin_state = FSMContext(storage=dispatcher.storage,
-                                         key=StorageKey(
-                                             chat_id=int(data["tg_id"]),
-                                             user_id=int(data["tg_id"]),
-                                             bot_id=bot.id
-                                         ))
-
-                await admin_state.set_state(AdminState.busy)
-
-
-            if response.status == 204:
-                logger.info(f"Free admin request. Status: {response.status}. Wrong telegram id.")
-
-            if response.status == 207:
-                logger.info(f"Free admin request. Status: {response.status}. No more clients.")
+    builder = InlineKeyboardBuilder()
+    builder.add(InlineKeyboardButton(text=NEXT_CLIENT_BUTTON_TEXT, callback_data="next_client"))
+    await message.answer(NEXT_CLIENT_TEXT, reply_markup=builder.as_markup())
 
 

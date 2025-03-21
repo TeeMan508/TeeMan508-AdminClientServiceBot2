@@ -17,10 +17,7 @@ services:
       context: .
     command: python -m bot
     volumes:
-      - ./bot:/code/bot
-      - ./etc:/code/etc
-      - ./config:/code/config
-      - ./test.py:/code/test.py
+      - ./:/code/
     ports:
       - "8001:8001"
 
@@ -35,20 +32,17 @@ services:
       && echo y"
 
     volumes:
-      - ./etc:/code/etc
-      - ./src:/code/src
-      - ./config:/code/config
-      - ./manage.py:/code/manage.py
+      - ./:/code/
     ports:
       - "8000:8000"
 
-  prometheus:
-    image: prom/prometheus
-    container_name: prometheus
-    command:
-      - "--config.file=/code/prometheus_config.yml"
-    ports:
-      - "9090:9090"
-    restart: unless-stopped
-    volumes:
-      - ./etc/prometheus_config.yml:/code/prometheus_config.yml
+#  prometheus:
+#    image: prom/prometheus
+#    container_name: prometheus
+#    command:
+#      - "--config.file=/code/prometheus_config.yml"
+#    ports:
+#      - "9090:9090"
+#    restart: unless-stopped
+#    volumes:
+#      - ./etc/prometheus_config.yml:/code/prometheus_config.yml
