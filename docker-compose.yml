@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:13.2
+    ports:
+      - "5432:5432"
+    command: [ "postgres", "-c", "log_statement=all", "-c", "log_destination=stderr" ]
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "postgres", "-d", "postgres" ]
+      interval: 1s
+      retries: 20
+    env_file:
+      - etc/.env.db
+
+  bot:
+    build:
+      dockerfile: Dockerfile
+      context: .
+    command: python -m bot
+    volumes:
+      - ./:/code/
+    ports:
+      - "8001:8001"
+
+  web:
+    build:
+      dockerfile: Dockerfile
+      context: .
+    command: >
+      sh -c "python manage.py makemigrations
+      && python manage.py migrate
+      && python manage.py runserver 0.0.0.0:8000
+      && echo y"
+
+    volumes:
+      - ./:/code/
+    ports:
+      - "8000:8000"
+
+#  prometheus:
+#    image: prom/prometheus
+#    container_name: prometheus
+#    command:
+#      - "--config.file=/code/prometheus_config.yml"
+#    ports:
+#      - "9090:9090"
+#    restart: unless-stopped
+#    volumes:
+#      - ./etc/prometheus_config.yml:/code/prometheus_config.yml

@@ -1,0 +1,7 @@
+from .register_admin_request import RegisterAdminRequestData
+from .register_client_requset import RegisterClientRequestData
+from .set_client_request import SetClientToAdminRequestData
+from .free_admin_request import FreeAdminRequestData
+from .get_client_request import GetClientRequestData
+from .get_admin_by_client_request import GetAdminByClientRequestData
+from .set_next_client_request import SetNextClientRequestData
